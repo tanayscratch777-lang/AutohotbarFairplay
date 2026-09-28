@@ -41,9 +41,7 @@ public final class ItemInspector {
         ItemEnchantments enchantments = stack.getEnchantments();
         for (Holder<Enchantment> holder : enchantments.keySet()) {
             int level = enchantments.getLevel(holder);
-            String id = holder.unwrapKey()
-                    .map(key -> key.location().toString())
-                    .orElse(holder.toString());
+            String id = holder.getRegisteredName();
             result.put(id, level);
         }
         return result;
