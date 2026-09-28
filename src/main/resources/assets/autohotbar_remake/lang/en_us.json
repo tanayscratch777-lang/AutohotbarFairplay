@@ -1,0 +1,24 @@
+{
+  "key.autohotbar_remake.open_config": "Open AutoHotbar Config",
+  "key.autohotbar_remake.toggle_debug": "Toggle Rule Debug Overlay",
+  "key.category.autohotbar_remake": "AutoHotbar Remake",
+
+  "autohotbar_remake.config.title": "AutoHotbar Remake",
+  "autohotbar_remake.config.slot": "Slot %s",
+  "autohotbar_remake.config.rules": "%s rule(s) - lower # wins",
+  "autohotbar_remake.config.add_rule": "+ Add rule",
+  "autohotbar_remake.config.no_rules": "No rules - click \"+ Add rule\" to start",
+  "autohotbar_remake.config.save": "Save",
+  "autohotbar_remake.config.cancel": "Cancel",
+  "autohotbar_remake.config.presets": "Presets",
+
+  "autohotbar_remake.rule.specific": "Specific",
+  "autohotbar_remake.rule.type": "Type",
+  "autohotbar_remake.rule.conditional": "Conditional",
+  "autohotbar_remake.rule.empty": "Empty (stop)",
+
+  "autohotbar_remake.variant.best_material": "Best material",
+  "autohotbar_remake.variant.most_dps": "Most DPS",
+  "autohotbar_remake.variant.worst": "Worst",
+  "autohotbar_remake.variant.best_condition": "Best condition"
+}
