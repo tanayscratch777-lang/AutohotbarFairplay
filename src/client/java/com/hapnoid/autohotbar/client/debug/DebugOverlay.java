@@ -30,7 +30,7 @@ public final class DebugOverlay {
         int x = 4;
         int y = 4;
         int lineHeight = client.font.lineHeight + 1;
-        graphics.drawString(client.font, "AutoHotbar debug (last eval tick " + HighlightState.lastEvaluatedTick() + ")", x, y, 0xFFFFFF, true);
+        graphics.text(client.font, "AutoHotbar debug (last eval tick " + HighlightState.lastEvaluatedTick() + ")", x, y, 0xFFFFFF, true);
         y += lineHeight + 2;
 
         for (int slot = 1; slot <= 9; slot++) {
@@ -43,7 +43,7 @@ public final class DebugOverlay {
             } else {
                 line = "Slot " + slot + ": rule #" + r.matchedPriority + " -> " + r.target.itemId;
             }
-            graphics.drawString(client.font, line, x, y, 0xFFFFFF, true);
+            graphics.text(client.font, line, x, y, 0xFFFFFF, true);
             y += lineHeight;
         }
     }
