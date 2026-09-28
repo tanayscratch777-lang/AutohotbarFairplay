@@ -1,0 +1,23 @@
+# Query: graphics.drawString(
+# ContextLines: 1
+
+4 results - 3 files
+
+src/client/java/com/hapnoid/autohotbar/client/debug/DebugOverlay.java:
+  32          int lineHeight = client.font.lineHeight + 1;
+  33:         graphics.text(client.font, "AutoHotbar debug (last eval tick " + HighlightState.lastEvaluatedTick() + ")", x, y, 0xFFFFFF, true);
+  34          y += lineHeight + 2;
+
+  45              }
+  46:             graphics.text(client.font, line, x, y, 0xFFFFFF, true);
+  47              y += lineHeight;
+
+src/client/java/com/hapnoid/autohotbar/client/highlight/HotbarHighlightRenderer.java:
+  56              int textWidth = client.font.width(label);
+  57:             graphics.text(client.font, label, x + SLOT_SIZE / 2 - textWidth / 2, y - 10, color, true);
+  58          }
+
+src/client/java/com/hapnoid/autohotbar/client/highlight/InventorySlotHighlighter.java:
+  64                  String label = KeyLabelResolver.labelFor(entry.getKey());
+  65:                 graphics.text(net.minecraft.client.Minecraft.getInstance().font, label, x - 2, y - 10, color, true);
+  66                  break;

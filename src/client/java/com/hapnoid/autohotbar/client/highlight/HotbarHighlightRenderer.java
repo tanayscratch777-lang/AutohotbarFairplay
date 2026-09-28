@@ -54,7 +54,7 @@ public final class HotbarHighlightRenderer {
 
             String label = KeyLabelResolver.labelFor(slot);
             int textWidth = client.font.width(label);
-            graphics.drawString(client.font, label, x + SLOT_SIZE / 2 - textWidth / 2, y - 10, color, true);
+            graphics.text(client.font, label, x + SLOT_SIZE / 2 - textWidth / 2, y - 10, color, true);
         }
     }
 }

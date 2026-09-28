@@ -62,7 +62,7 @@ public final class InventorySlotHighlighter {
                 graphics.fill(x + SLOT_ICON_SIZE, y - 1, x + SLOT_ICON_SIZE + 1, y + SLOT_ICON_SIZE + 1, color);
 
                 String label = KeyLabelResolver.labelFor(entry.getKey());
-                graphics.drawString(net.minecraft.client.Minecraft.getInstance().font, label, x - 2, y - 10, color, true);
+                graphics.text(net.minecraft.client.Minecraft.getInstance().font, label, x - 2, y - 10, color, true);
                 break;
             }
         }
