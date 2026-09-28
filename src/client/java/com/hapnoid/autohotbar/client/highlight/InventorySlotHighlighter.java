@@ -26,8 +26,6 @@ import java.util.Map;
  */
 public final class InventorySlotHighlighter {
 
-    private static final int SLOT_ICON_SIZE = 16;
-
     private InventorySlotHighlighter() {
     }
 
@@ -41,6 +39,10 @@ public final class InventorySlotHighlighter {
     }
 
     private static void drawHighlights(AbstractContainerScreen<?> screen, net.minecraft.client.gui.GuiGraphicsExtractor graphics) {
+        net.minecraft.world.entity.player.Player player = net.minecraft.client.Minecraft.getInstance().player;
+        if (player == null) return;
+        net.minecraft.world.entity.player.Inventory inv = player.getInventory();
+
         Map<Integer, RuleEvaluator.SlotResult> results = HighlightState.current();
         ContainerScreenAccessor accessor = (ContainerScreenAccessor) screen;
         int left = accessor.autohotbar$getLeftPos();
@@ -48,25 +50,18 @@ public final class InventorySlotHighlighter {
 
         for (Slot slot : screen.getMenu().slots) {
             ItemStack stackInSlot = slot.getItem();
+            if (stackInSlot.isEmpty()) continue;
+
             for (Map.Entry<Integer, RuleEvaluator.SlotResult> entry : results.entrySet()) {
                 RuleEvaluator.SlotResult result = entry.getValue();
                 if (result.target == null || result.target.stack != stackInSlot) continue;
-                // Already sitting in the hotbar slot the rule wants? Then nothing to do.
-                net.minecraft.world.entity.player.Player player = net.minecraft.client.Minecraft.getInstance().player;
-                if (player != null && slot.container == player.getInventory()
-                        && slot.getContainerSlot() == entry.getKey() - 1) continue;
 
-                int x = left + slot.x;
-                int y = top + slot.y;
-                int color = HighlightState.colorFor(result.matchedPriority);
+                // Already in the hotbar slot the rule wants? Nothing to do. (Checked against the
+                // real player inventory, NOT slot indexes - the creative screen wraps slots and
+                // reports different indexes, which is why this used to misfire there.)
+                if (inv.getItem(entry.getKey() - 1) == stackInSlot) break;
 
-                graphics.fill(x - 1, y - 1, x + SLOT_ICON_SIZE + 1, y, color);
-                graphics.fill(x - 1, y + SLOT_ICON_SIZE, x + SLOT_ICON_SIZE + 1, y + SLOT_ICON_SIZE + 1, color);
-                graphics.fill(x - 1, y - 1, x, y + SLOT_ICON_SIZE + 1, color);
-                graphics.fill(x + SLOT_ICON_SIZE, y - 1, x + SLOT_ICON_SIZE + 1, y + SLOT_ICON_SIZE + 1, color);
-
-                String label = KeyLabelResolver.labelFor(entry.getKey());
-                graphics.text(net.minecraft.client.Minecraft.getInstance().font, label, x - 2, y - 10, color, true);
+                SlotTint.draw(graphics, left + slot.x, top + slot.y, entry.getKey(), result.matchedPriority);
                 break;
             }
         }

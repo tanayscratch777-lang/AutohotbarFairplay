@@ -35,7 +35,7 @@ public final class DebugOverlay {
             ruleCount += sc.rules.size();
         }
         graphics.text(client.font, "AutoHotbar debug - evaluated at tick " + HighlightState.lastEvaluatedTick()
-                + ", " + HighlightState.scannedItemCount() + " item stacks scanned, " + ruleCount + " rule(s) configured", x, y, 0xFFFFFF, true);
+                + ", " + HighlightState.scannedItemCount() + " item stacks scanned, " + ruleCount + " rule(s) configured", x, y, 0xFFFFFFFF, true);
         y += lineHeight + 2;
 
         for (int slot = 1; slot <= 9; slot++) {
@@ -48,7 +48,7 @@ public final class DebugOverlay {
             } else {
                 line = "Slot " + slot + ": rule #" + r.matchedPriority + " -> " + r.target.itemId;
             }
-            graphics.text(client.font, line, x, y, 0xFFFFFF, true);
+            graphics.text(client.font, line, x, y, 0xFFFFFFFF, true);
             y += lineHeight;
         }
     }

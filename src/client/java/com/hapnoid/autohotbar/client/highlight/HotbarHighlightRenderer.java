@@ -4,21 +4,22 @@ import com.hapnoid.autohotbar.rule.RuleEvaluator;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.entity.player.Inventory;
 
 import java.util.Map;
 
 /**
- * Renders over the vanilla hotbar using its well-known, long-stable layout:
- * a 182px-wide bar centered horizontally, 22px tall, sitting flush with the
- * bottom of the screen, with 9 equal 20px slots. This geometry has not
- * changed across Minecraft versions in a very long time, unlike the
- * rendering API method names around it - so it's a safe thing to hardcode.
+ * HUD version (no screen open). Same meaning as in inventory screens: the highlighted
+ * item is the one you should MOVE, and the label is the key of the hotbar slot it
+ * should go to. Only items that are currently IN the hotbar can be shown here - an item
+ * still sitting in the main inventory has no spot on the HUD.
+ *
+ * Vanilla hotbar geometry: 182px bar centered, item icon for slot i at
+ * x = left + 3 + i*20, y = screenHeight - 19.
  */
 public final class HotbarHighlightRenderer {
 
     private static final int HOTBAR_WIDTH = 182;
-    private static final int SLOT_SIZE = 20;
-    private static final int BOTTOM_MARGIN = 4;
 
     private HotbarHighlightRenderer() {
     }
@@ -26,35 +27,29 @@ public final class HotbarHighlightRenderer {
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker tickCounter) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || client.options == null) return;
-        if (client.screen != null) return; // a screen (inventory/chest/etc.) is open - the screen overlay handles that case instead
+        if (client.screen != null) return; // inventory/chest/etc. open - the screen overlay handles it
 
+        Inventory inv = client.player.getInventory();
         int screenWidth = client.getWindow().getGuiScaledWidth();
         int screenHeight = client.getWindow().getGuiScaledHeight();
         int hotbarLeft = screenWidth / 2 - HOTBAR_WIDTH / 2;
-        int hotbarTop = screenHeight - 22 + 1;
 
-        Map<Integer, RuleEvaluator.SlotResult> results = HighlightState.current();
-
-        for (int slot = 1; slot <= 9; slot++) {
-            RuleEvaluator.SlotResult result = results.get(slot);
+        for (Map.Entry<Integer, RuleEvaluator.SlotResult> entry : HighlightState.current().entrySet()) {
+            int destSlot = entry.getKey();
+            RuleEvaluator.SlotResult result = entry.getValue();
             if (result == null || result.target == null) continue;
-            // Only highlight if this slot doesn't already hold the target item -
-            // no point telling the player to switch to what they're already holding.
-            if (client.player.getInventory().getItem(slot - 1) == result.target.stack) continue;
 
-            int x = hotbarLeft + 1 + (slot - 1) * SLOT_SIZE;
-            int y = hotbarTop;
-            int color = HighlightState.colorFor(result.matchedPriority);
+            // Already in the slot the rule wants - nothing to do.
+            if (inv.getItem(destSlot - 1) == result.target.stack) continue;
 
-            // Thin colored border around the slot.
-            graphics.fill(x + 1, y, x + SLOT_SIZE - 1, y + 1, color);
-            graphics.fill(x + 1, y + SLOT_SIZE - 2, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, color);
-            graphics.fill(x, y, x + 1, y + SLOT_SIZE - 1, color);
-            graphics.fill(x + SLOT_SIZE - 2, y, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, color);
-
-            String label = KeyLabelResolver.labelFor(slot);
-            int textWidth = client.font.width(label);
-            graphics.text(client.font, label, x + SLOT_SIZE / 2 - textWidth / 2, y - 11, color, true);
+            for (int i = 0; i < 9; i++) {
+                if (inv.getItem(i) == result.target.stack) {
+                    int itemX = hotbarLeft + 3 + i * 20;
+                    int itemY = screenHeight - 19;
+                    SlotTint.draw(graphics, itemX, itemY, destSlot, result.matchedPriority);
+                    break;
+                }
+            }
         }
     }
 }
