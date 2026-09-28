@@ -17,6 +17,12 @@ public final class ConfigManager {
     private static final String FILE_NAME = "autohotbar_remake.json";
 
     private static ModConfig config;
+    private static volatile int revision = 0;
+
+    /** Bumped on every save, so the client knows to re-run the rules after a config edit. */
+    public static int revision() {
+        return revision;
+    }
 
     private ConfigManager() {
     }
@@ -52,6 +58,7 @@ public final class ConfigManager {
     }
 
     public static void save() {
+        revision++;
         Path path = configPath();
         try {
             Files.createDirectories(path.getParent());

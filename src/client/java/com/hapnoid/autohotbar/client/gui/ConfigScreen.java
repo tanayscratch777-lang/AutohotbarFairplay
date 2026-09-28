@@ -20,8 +20,11 @@ public class ConfigScreen extends Screen {
     private static final int BUTTON_WIDTH = 220;
     private static final int SPACING = 4;
 
+    private final Screen parent;
+
     public ConfigScreen(Screen parent) {
         super(Component.literal("AutoHotbar Remake"));
+        this.parent = parent;
     }
 
     @Override
@@ -42,7 +45,7 @@ public class ConfigScreen extends Screen {
         int doneY = startY + ROWS * (BUTTON_HEIGHT + SPACING) + SPACING;
         this.addRenderableWidget(Button.builder(Component.literal("Done"), button -> {
             ConfigManager.save();
-            this.minecraft.setScreen(null);
+            this.minecraft.setScreen(parent);
         }).bounds(centerX - BUTTON_WIDTH / 2, doneY, BUTTON_WIDTH, BUTTON_HEIGHT).build());
     }
 

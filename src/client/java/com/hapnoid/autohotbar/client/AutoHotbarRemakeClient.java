@@ -48,8 +48,14 @@ public class AutoHotbarRemakeClient implements ClientModInitializer {
     private KeyMapping openConfigKey;
     private KeyMapping toggleDebugKey;
 
-    private long lastEvaluationTick = Long.MIN_VALUE;
-    private long lastQuickHash = Long.MIN_VALUE;
+    // NOTE: must NOT start at Long.MIN_VALUE - (tick - Long.MIN_VALUE) overflows to a
+    // negative number and the throttle check would then never pass (that was the
+    // "no highlight at all" bug in v0.1.0).
+    private long clientTicks = 0;
+    private long lastEvaluationTick = -1000;
+    private long lastQuickHash = 0;
+    private boolean hashInitialized = false;
+    private int lastConfigRevision = -1;
 
     @Override
     public void onInitializeClient() {
@@ -81,23 +87,29 @@ public class AutoHotbarRemakeClient implements ClientModInitializer {
     }
 
     private void onTick(Minecraft client) {
-        if (client.player == null) return;
-        long tick = client.player.tickCount;
+        if (client.player == null) {
+            hashInitialized = false; // force a fresh evaluation next time we're in a world
+            return;
+        }
+        clientTicks++;
 
-        // Cheap every-tick check (see InventoryScanner's design note); only run the
-        // heavier rule evaluation when something actually changed, throttled so an
-        // event storm (huge farm output) can't force more than one full re-evaluation
-        // every N ticks.
+        // Cheap every-tick check (see InventoryScanner's design note); the heavier rule
+        // evaluation only runs when the inventory changed, the config was edited, or as a
+        // slow safety refresh - and never more often than minTicksBetweenEvaluations.
         long hash = InventoryScanner.quickHash(client.player);
-        boolean changed = hash != lastQuickHash;
-        boolean throttleOk = (tick - lastEvaluationTick) >= ConfigManager.get().minTicksBetweenEvaluations;
+        boolean inventoryChanged = !hashInitialized || hash != lastQuickHash;
+        boolean configChanged = ConfigManager.revision() != lastConfigRevision;
+        boolean periodic = (clientTicks - lastEvaluationTick) >= 40;
+        boolean throttleOk = (clientTicks - lastEvaluationTick) >= ConfigManager.get().minTicksBetweenEvaluations;
 
-        if (changed && throttleOk) {
+        if ((inventoryChanged || configChanged || periodic) && throttleOk) {
+            hashInitialized = true;
             lastQuickHash = hash;
-            lastEvaluationTick = tick;
+            lastConfigRevision = ConfigManager.revision();
+            lastEvaluationTick = clientTicks;
             List<ItemCandidate> inventory = InventoryScanner.scan(client.player);
             Map<Integer, RuleEvaluator.SlotResult> results = RuleEvaluator.evaluate(ConfigManager.get(), inventory);
-            HighlightState.update(results, tick);
+            HighlightState.update(results, clientTicks, inventory.size());
         }
 
         while (openConfigKey.consumeClick()) {

@@ -51,6 +51,10 @@ public final class InventorySlotHighlighter {
             for (Map.Entry<Integer, RuleEvaluator.SlotResult> entry : results.entrySet()) {
                 RuleEvaluator.SlotResult result = entry.getValue();
                 if (result.target == null || result.target.stack != stackInSlot) continue;
+                // Already sitting in the hotbar slot the rule wants? Then nothing to do.
+                net.minecraft.world.entity.player.Player player = net.minecraft.client.Minecraft.getInstance().player;
+                if (player != null && slot.container == player.getInventory()
+                        && slot.getContainerSlot() == entry.getKey() - 1) continue;
 
                 int x = left + slot.x;
                 int y = top + slot.y;

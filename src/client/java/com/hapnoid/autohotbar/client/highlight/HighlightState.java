@@ -9,17 +9,23 @@ import java.util.Map;
 public final class HighlightState {
     private static volatile Map<Integer, RuleEvaluator.SlotResult> latest = Collections.emptyMap();
     private static volatile long lastEvaluatedTick = -1;
+    private static volatile int scannedItemCount = 0;
 
     private HighlightState() {
     }
 
-    public static void update(Map<Integer, RuleEvaluator.SlotResult> results, long tick) {
+    public static void update(Map<Integer, RuleEvaluator.SlotResult> results, long tick, int scannedCount) {
+        scannedItemCount = scannedCount;
         latest = results;
         lastEvaluatedTick = tick;
     }
 
     public static Map<Integer, RuleEvaluator.SlotResult> current() {
         return latest;
+    }
+
+    public static int scannedItemCount() {
+        return scannedItemCount;
     }
 
     public static long lastEvaluatedTick() {

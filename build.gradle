@@ -17,6 +17,7 @@ base {
 
 repositories {
     mavenCentral()
+    maven { url = "https://maven.terraformersmc.com/" } // Mod Menu
 }
 
 loom {
@@ -40,6 +41,10 @@ dependencies {
 
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // Mod Menu is only needed at compile time (so the config button shows up in Mod Menu
+    // if the player has it installed). It is NOT bundled and NOT required to run.
+    clientCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 }
 
 java {

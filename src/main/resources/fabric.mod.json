@@ -14,6 +14,9 @@
     ],
     "client": [
       "com.hapnoid.autohotbar.client.AutoHotbarRemakeClient"
+    ],
+    "modmenu": [
+      "com.hapnoid.autohotbar.client.ModMenuIntegration"
     ]
   },
 

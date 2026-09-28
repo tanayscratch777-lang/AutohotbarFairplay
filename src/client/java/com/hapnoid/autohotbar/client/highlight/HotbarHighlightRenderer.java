@@ -31,7 +31,7 @@ public final class HotbarHighlightRenderer {
         int screenWidth = client.getWindow().getGuiScaledWidth();
         int screenHeight = client.getWindow().getGuiScaledHeight();
         int hotbarLeft = screenWidth / 2 - HOTBAR_WIDTH / 2;
-        int hotbarTop = screenHeight - SLOT_SIZE - BOTTOM_MARGIN;
+        int hotbarTop = screenHeight - 22 + 1;
 
         Map<Integer, RuleEvaluator.SlotResult> results = HighlightState.current();
 
@@ -42,7 +42,7 @@ public final class HotbarHighlightRenderer {
             // no point telling the player to switch to what they're already holding.
             if (client.player.getInventory().getItem(slot - 1) == result.target.stack) continue;
 
-            int x = hotbarLeft + (slot - 1) * SLOT_SIZE;
+            int x = hotbarLeft + 1 + (slot - 1) * SLOT_SIZE;
             int y = hotbarTop;
             int color = HighlightState.colorFor(result.matchedPriority);
 
@@ -54,7 +54,7 @@ public final class HotbarHighlightRenderer {
 
             String label = KeyLabelResolver.labelFor(slot);
             int textWidth = client.font.width(label);
-            graphics.text(client.font, label, x + SLOT_SIZE / 2 - textWidth / 2, y - 10, color, true);
+            graphics.text(client.font, label, x + SLOT_SIZE / 2 - textWidth / 2, y - 11, color, true);
         }
     }
 }

@@ -30,7 +30,12 @@ public final class DebugOverlay {
         int x = 4;
         int y = 4;
         int lineHeight = client.font.lineHeight + 1;
-        graphics.text(client.font, "AutoHotbar debug (last eval tick " + HighlightState.lastEvaluatedTick() + ")", x, y, 0xFFFFFF, true);
+        int ruleCount = 0;
+        for (com.hapnoid.autohotbar.config.SlotConfig sc : com.hapnoid.autohotbar.config.ConfigManager.get().slots) {
+            ruleCount += sc.rules.size();
+        }
+        graphics.text(client.font, "AutoHotbar debug - evaluated at tick " + HighlightState.lastEvaluatedTick()
+                + ", " + HighlightState.scannedItemCount() + " item stacks scanned, " + ruleCount + " rule(s) configured", x, y, 0xFFFFFF, true);
         y += lineHeight + 2;
 
         for (int slot = 1; slot <= 9; slot++) {

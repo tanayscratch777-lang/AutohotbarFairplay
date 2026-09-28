@@ -139,12 +139,19 @@ public class RuleEditScreen extends Screen {
     }
 
     private void applyAndSave() {
+        applyFields();
+        ConfigManager.save();
+    }
+
+    private void applyFields() {
         rule.priority = parseIntSafe(priorityBox.getValue(), rule.priority);
         rule.alsoFillSlots = parseIntList(alsoFillSlotsBox.getValue());
 
         switch (rule.kind) {
             case SPECIFIC -> {
-                rule.specificItemId = itemIdBox.getValue().trim();
+                String typedId = itemIdBox.getValue().trim().toLowerCase(java.util.Locale.ROOT);
+                if (!typedId.isEmpty() && !typedId.contains(":")) typedId = "minecraft:" + typedId; // "stone" -> "minecraft:stone"
+                rule.specificItemId = typedId;
                 rule.requiredEnchants = parseEnchants(requiredEnchantsBox.getValue());
             }
             case TYPE -> {
@@ -164,13 +171,15 @@ public class RuleEditScreen extends Screen {
                 // nothing to apply
             }
         }
-        ConfigManager.save();
     }
 
     // ---- small layout helpers ----
 
     private void addCycleButton(String label, int left, Runnable onPress) {
-        this.addRenderableWidget(Button.builder(Component.literal(label), b -> onPress.run())
+        this.addRenderableWidget(Button.builder(Component.literal(label), b -> {
+            applyFields(); // keep whatever was typed so far - the screen is rebuilt after the click
+            onPress.run();
+        })
                 .bounds(left, y, FIELD_WIDTH, FIELD_HEIGHT).build());
         y += FIELD_HEIGHT + SPACING;
     }
