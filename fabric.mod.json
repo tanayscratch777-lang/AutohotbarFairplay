@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "autohotbar_remake",
+  "version": "${version}",
+  "name": "AutoHotbar Remake",
+  "description": "Rule-based hotbar helper: highlights which item to switch to (by your actual remapped key), across hotbar, inventory, creative and container screens. Never auto-swaps for you.",
+  "authors": ["hapnoid"],
+  "license": "MIT",
+  "environment": "client",
+
+  "entrypoints": {
+    "main": [
+      "com.hapnoid.autohotbar.AutoHotbarRemake"
+    ],
+    "client": [
+      "com.hapnoid.autohotbar.client.AutoHotbarRemakeClient"
+    ],
+    "modmenu": [
+      "com.hapnoid.autohotbar.client.ModMenuIntegration"
+    ]
+  },
+
+  "mixins": [
+    { "config": "autohotbar_remake.client.mixins.json", "environment": "client" },
+    { "config": "autohotbar_remake.client.optional.mixins.json", "environment": "client" }
+  ],
+
+  "depends": {
+    "fabricloader": ">=0.19.0",
+    "minecraft": "~26.1.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
