@@ -76,9 +76,32 @@ public final class RuleEvaluator {
 
     public static Map<Integer, SlotResult> evaluate(ModConfig config, List<ItemCandidate> inventory) {
         Context ctx = new Context(buildEffectiveRuleLists(config), inventory);
-
         Map<Integer, SlotResult> results = new HashMap<>();
+
+        // ------------------------------------------------------------------
+        // STABILIZATION PASS: if two or more slots share the exact same
+        // primary Type rule (e.g. slot 1 and slot 2 both "best sword"), the
+        // plain slot-order claiming below always gives slot 1 the #1 item,
+        // forcing a swap prompt every time the player happens to be holding
+        // them in the "wrong" slot - even when the right SET of items is
+        // already split between the two slots. This pass checks that case
+        // first: if the items currently sitting in a group of equivalent
+        // slots are ALREADY exactly the top-N best available (just not
+        // necessarily in canonical rank order), keep them exactly where
+        // they are instead of prompting a purely cosmetic swap. It only
+        // looks at each slot's PRIMARY (lowest-priority-number) rule, so a
+        // slot whose main rule isn't Type, or whose Type rule differs
+        // (different category/variant/enchant filter) from the others,
+        // isn't affected.
+        // ------------------------------------------------------------------
+        for (List<Integer> group : groupBySignature(ctx).values()) {
+            if (group.size() >= 2) {
+                stabilizeGroupIfAlreadyOptimal(group, ctx, results);
+            }
+        }
+
         for (int slotNumber = 1; slotNumber <= 9; slotNumber++) {
+            if (results.containsKey(slotNumber)) continue; // already decided by the stabilization pass
             List<Rule> rules = ctx.effectiveRules.getOrDefault(slotNumber, List.of());
             SlotResult result = evaluateSlot(slotNumber, rules, ctx);
             results.put(slotNumber, result);
@@ -87,6 +110,80 @@ public final class RuleEvaluator {
             }
         }
         return results;
+    }
+
+    private static Map<String, List<Integer>> groupBySignature(Context ctx) {
+        Map<String, List<Integer>> groups = new HashMap<>();
+        for (int slot = 1; slot <= 9; slot++) {
+            List<Rule> rules = ctx.effectiveRules.getOrDefault(slot, List.of());
+            if (rules.isEmpty()) continue;
+            Rule primary = rules.get(0); // rulesByPriority()-derived lists are already priority-sorted
+            if (primary.kind != RuleKind.TYPE) continue;
+            String sig = signatureOf(primary);
+            groups.computeIfAbsent(sig, k -> new ArrayList<>()).add(slot);
+        }
+        return groups;
+    }
+
+    private static String signatureOf(Rule rule) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(rule.category).append('|').append(rule.variant == null ? Variant.BEST_MATERIAL : rule.variant);
+        List<String> parts = new ArrayList<>();
+        for (EnchantRequirement r : rule.typeEnchantFilter) {
+            parts.add(r.enchantmentId + ":" + r.minLevel + ":" + r.anyOfGroupId);
+        }
+        Collections.sort(parts);
+        sb.append('|').append(String.join(",", parts));
+        return sb.toString();
+    }
+
+    private static void stabilizeGroupIfAlreadyOptimal(List<Integer> group, Context ctx, Map<Integer, SlotResult> results) {
+        Map<Integer, Rule> primaryRuleBySlot = new HashMap<>();
+        for (int slot : group) {
+            primaryRuleBySlot.put(slot, ctx.effectiveRules.get(slot).get(0));
+        }
+        Rule sampleRule = primaryRuleBySlot.values().iterator().next();
+
+        // What SHOULD occupy these slots collectively, best-first, ignoring which
+        // specific slot each one lands in.
+        List<ItemCandidate> candidates = new ArrayList<>();
+        for (ItemCandidate c : ctx.unclaimedPool()) {
+            if (matchesRule(sampleRule, c)) candidates.add(c);
+        }
+        candidates.sort(comparatorFor(sampleRule));
+        if (candidates.size() < group.size()) return; // not enough valid items to even fill the group - let normal resolution report the shortfall
+        Set<ItemCandidate> targetSet = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (int i = 0; i < group.size(); i++) targetSet.add(candidates.get(i));
+
+        // What's ALREADY sitting in these slots right now.
+        Map<Integer, ItemCandidate> currentBySlot = new HashMap<>();
+        for (int slot : group) {
+            ItemCandidate current = currentItemInHotbarSlot(slot, ctx);
+            if (current == null || ctx.claimed.contains(current) || !matchesRule(primaryRuleBySlot.get(slot), current)) {
+                return; // this slot doesn't already hold a valid, unclaimed match - not stable, fall back to normal ranking
+            }
+            currentBySlot.put(slot, current);
+        }
+        Set<ItemCandidate> currentSet = Collections.newSetFromMap(new IdentityHashMap<>());
+        currentSet.addAll(currentBySlot.values());
+        if (!currentSet.equals(targetSet)) {
+            return; // the right ITEMS aren't all already here (an upgrade exists, or a duplicate) - let normal ranking handle it
+        }
+
+        // Already optimal as a set - keep everyone exactly where they are.
+        for (int slot : group) {
+            ItemCandidate current = currentBySlot.get(slot);
+            results.put(slot, new SlotResult(slot, current, primaryRuleBySlot.get(slot).priority, false));
+            ctx.claimed.add(current);
+        }
+    }
+
+    private static ItemCandidate currentItemInHotbarSlot(int slotNumber, Context ctx) {
+        int inventoryIndex = slotNumber - 1;
+        for (ItemCandidate c : ctx.fullInventory) {
+            if (c.inventoryIndex == inventoryIndex) return c;
+        }
+        return null;
     }
 
     private static SlotResult evaluateSlot(int slotNumber, List<Rule> rules, Context ctx) {

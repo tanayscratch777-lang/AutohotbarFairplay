@@ -34,7 +34,7 @@ public class ContainerScreenLabelsMixin {
 
     @Inject(method = "extractLabels", at = @At("TAIL"))
     private void autohotbar$drawHighlightBeforeTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
-        InventorySlotHighlighter.drawHighlights((AbstractContainerScreen<?>) (Object) this, graphics);
+        InventorySlotHighlighter.drawHighlights((AbstractContainerScreen<?>) (Object) this, graphics, mouseX, mouseY);
         InventorySlotHighlighter.markHandledByMixinThisFrame();
     }
 }

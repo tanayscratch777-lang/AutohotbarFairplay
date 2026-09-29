@@ -40,6 +40,9 @@ public final class InventorySlotHighlighter {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             if (screen instanceof AbstractContainerScreen<?> containerScreen) {
                 ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, tickDelta) -> {
+                    // NOTE: this fallback path draws AFTER the tooltip/carried item, so on this
+                    // path the highlight can still visually sit above a tooltip - the mixin
+                    // path below (if it applied) avoids that by skipping the hovered slot instead.
                     // Fallback path: only draws if the optional mixin above didn't already
                     // handle this frame (e.g. its method signature guess didn't match this
                     // build and Fabric Loader skipped it). Keeps highlighting working either
@@ -48,13 +51,23 @@ public final class InventorySlotHighlighter {
                         handledByMixinThisFrame = false;
                         return;
                     }
-                    drawHighlights(containerScreen, graphics);
+                    drawHighlights(containerScreen, graphics, mouseX, mouseY);
                 });
             }
         });
     }
 
     public static void drawHighlights(AbstractContainerScreen<?> screen, net.minecraft.client.gui.GuiGraphicsExtractor graphics) {
+        drawHighlights(screen, graphics, -1, -1);
+    }
+
+    /**
+     * mouseX/mouseY (screen space) let us skip drawing over whichever slot is
+     * currently hovered - that's the slot about to show a tooltip, so this
+     * sidesteps the tooltip-vs-highlight z-order question entirely instead of
+     * depending on exactly which stratum each one happens to render in.
+     */
+    public static void drawHighlights(AbstractContainerScreen<?> screen, net.minecraft.client.gui.GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         net.minecraft.world.entity.player.Player player = net.minecraft.client.Minecraft.getInstance().player;
         if (player == null) return;
         net.minecraft.world.entity.player.Inventory inv = player.getInventory();
