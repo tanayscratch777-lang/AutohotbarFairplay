@@ -5,16 +5,27 @@ import com.hapnoid.autohotbar.config.SlotConfig;
 import com.hapnoid.autohotbar.util.ItemCandidate;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Pure logic, no Minecraft dependency: given the current config and a list of
- * {@link ItemCandidate} snapshots (see InventoryScanner for how those get
- * built), decides which candidate item each of the 9 hotbar slots wants.
+ * {@link ItemCandidate} snapshots (see InventoryScanner), decides which
+ * candidate item each of the 9 hotbar slots wants.
+ *
+ * ------------------------------------------------------------------------
+ *  CLAIMING: once an item is picked as the winner for one slot, it is
+ *  removed from the pool before later slots are resolved. Slots are
+ *  processed in order 1 -> 9. This is what makes "slot 1: best sword" and
+ *  "slot 2: best sword" resolve to the BEST and SECOND-BEST sword instead
+ *  of both pointing at the same physical item.
+ * ------------------------------------------------------------------------
  */
 public final class RuleEvaluator {
 
@@ -32,56 +43,73 @@ public final class RuleEvaluator {
         }
     }
 
+    /** Threaded through one evaluate() call; not shared/reused across calls. */
+    private static final class Context {
+        final Map<Integer, List<Rule>> effectiveRules;
+        final List<ItemCandidate> fullInventory;
+        final Set<ItemCandidate> claimed = Collections.newSetFromMap(new IdentityHashMap<>());
+        final Map<Long, Optional<ItemCandidate>> cache = new HashMap<>();
+
+        Context(Map<Integer, List<Rule>> effectiveRules, List<ItemCandidate> fullInventory) {
+            this.effectiveRules = effectiveRules;
+            this.fullInventory = fullInventory;
+        }
+
+        List<ItemCandidate> unclaimedPool() {
+            List<ItemCandidate> pool = new ArrayList<>(fullInventory.size());
+            for (ItemCandidate c : fullInventory) {
+                if (!claimed.contains(c)) pool.add(c);
+            }
+            return pool;
+        }
+
+        Rule findRule(int slot, int priority) {
+            for (Rule r : effectiveRules.getOrDefault(slot, List.of())) {
+                if (r.priority == priority) return r;
+            }
+            return null;
+        }
+    }
+
     private RuleEvaluator() {
     }
 
     public static Map<Integer, SlotResult> evaluate(ModConfig config, List<ItemCandidate> inventory) {
-        // Expand multi-slot-fill rules into a working copy of each slot's rule list.
-        Map<Integer, List<Rule>> effectiveRules = buildEffectiveRuleLists(config);
+        Context ctx = new Context(buildEffectiveRuleLists(config), inventory);
 
-        // Pass 1: for every (slot, rule) pair that is Specific or Type, independently
-        // resolve whether it finds a candidate - Conditional rules reference these.
-        Map<Long, Optional<ItemCandidate>> ruleMatchCache = new HashMap<>();
-        for (Map.Entry<Integer, List<Rule>> e : effectiveRules.entrySet()) {
-            for (Rule rule : e.getValue()) {
-                if (rule.kind == RuleKind.SPECIFIC || rule.kind == RuleKind.TYPE) {
-                    ruleMatchCache.put(key(e.getKey(), rule.priority), resolveDirect(rule, inventory));
-                }
-            }
-        }
-
-        // Pass 2: walk each slot's priority-ordered list, resolving Conditional/Empty
-        // rules against the cache built above.
         Map<Integer, SlotResult> results = new HashMap<>();
         for (int slotNumber = 1; slotNumber <= 9; slotNumber++) {
-            List<Rule> rules = effectiveRules.getOrDefault(slotNumber, List.of());
-            SlotResult result = evaluateSlot(slotNumber, rules, ruleMatchCache);
+            List<Rule> rules = ctx.effectiveRules.getOrDefault(slotNumber, List.of());
+            SlotResult result = evaluateSlot(slotNumber, rules, ctx);
             results.put(slotNumber, result);
+            if (result.target != null) {
+                ctx.claimed.add(result.target);
+            }
         }
         return results;
     }
 
-    private static SlotResult evaluateSlot(int slotNumber, List<Rule> rules, Map<Long, Optional<ItemCandidate>> cache) {
+    private static SlotResult evaluateSlot(int slotNumber, List<Rule> rules, Context ctx) {
         for (Rule rule : rules) {
             switch (rule.kind) {
                 case EMPTY -> {
                     return new SlotResult(slotNumber, null, rule.priority, true);
                 }
                 case SPECIFIC, TYPE -> {
-                    Optional<ItemCandidate> found = cache.getOrDefault(key(slotNumber, rule.priority), Optional.empty());
+                    Optional<ItemCandidate> found = resolveCached(slotNumber, rule.priority, ctx);
                     if (found.isPresent()) {
                         return new SlotResult(slotNumber, found.get(), rule.priority, false);
                     }
                     // else fall through to the next rule in this slot
                 }
                 case CONDITIONAL -> {
-                    boolean conditionMet = cache.getOrDefault(key(rule.ifSlot, rule.ifRule), Optional.empty()).isPresent();
+                    boolean conditionMet = resolveCached(rule.ifSlot, rule.ifRule, ctx).isPresent();
                     ConditionalAction action = conditionMet ? rule.thenAction : rule.elseAction;
                     int branchSlot = conditionMet ? rule.thenSlot : rule.elseSlot;
                     int branchRule = conditionMet ? rule.thenRule : rule.elseRule;
                     switch (action) {
                         case USE -> {
-                            Optional<ItemCandidate> found = cache.getOrDefault(key(branchSlot, branchRule), Optional.empty());
+                            Optional<ItemCandidate> found = resolveCached(branchSlot, branchRule, ctx);
                             if (found.isPresent()) {
                                 return new SlotResult(slotNumber, found.get(), rule.priority, false);
                             }
@@ -100,10 +128,33 @@ public final class RuleEvaluator {
         return new SlotResult(slotNumber, null, 0, false);
     }
 
-    /** Evaluates a single Specific/Type rule against the full inventory, independent of slot context. */
-    private static Optional<ItemCandidate> resolveDirect(Rule rule, List<ItemCandidate> inventory) {
+    /**
+     * Resolves one Specific/Type rule (by its owning slot + priority) against the
+     * CURRENTLY unclaimed pool, caching the result. Safe to call for a slot that
+     * hasn't been "reached" yet by the outer loop (e.g. a Conditional referencing
+     * a later slot) - it just resolves that rule on demand, still against
+     * whatever is unclaimed at that point.
+     */
+    private static Optional<ItemCandidate> resolveCached(int slot, int priority, Context ctx) {
+        long key = key(slot, priority);
+        Optional<ItemCandidate> cached = ctx.cache.get(key);
+        if (cached != null) return cached;
+
+        Rule rule = ctx.findRule(slot, priority);
+        Optional<ItemCandidate> result;
+        if (rule == null || (rule.kind != RuleKind.SPECIFIC && rule.kind != RuleKind.TYPE)) {
+            result = Optional.empty();
+        } else {
+            result = resolveDirect(rule, ctx.unclaimedPool());
+        }
+        ctx.cache.put(key, result);
+        return result;
+    }
+
+    /** Evaluates a single Specific/Type rule against the given (already-unclaimed) pool. */
+    private static Optional<ItemCandidate> resolveDirect(Rule rule, List<ItemCandidate> pool) {
         List<ItemCandidate> candidates = new ArrayList<>();
-        for (ItemCandidate c : inventory) {
+        for (ItemCandidate c : pool) {
             if (matchesRule(rule, c)) {
                 candidates.add(c);
             }
@@ -117,8 +168,7 @@ public final class RuleEvaluator {
             return Optional.of(candidates.get(0));
         }
         // TYPE: rank by the requested variant.
-        Comparator<ItemCandidate> byVariant = comparatorFor(rule);
-        candidates.sort(byVariant);
+        candidates.sort(comparatorFor(rule));
         return Optional.of(candidates.get(0));
     }
 
@@ -187,7 +237,6 @@ public final class RuleEvaluator {
                 }
             }
         }
-        // Re-sort each slot's expanded list by priority since fills may have been appended out of order.
         for (List<Rule> list : effective.values()) {
             list.sort(Comparator.comparingInt(r -> r.priority));
         }

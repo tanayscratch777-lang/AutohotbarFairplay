@@ -21,7 +21,8 @@
   },
 
   "mixins": [
-    { "config": "autohotbar_remake.client.mixins.json", "environment": "client" }
+    { "config": "autohotbar_remake.client.mixins.json", "environment": "client" },
+    { "config": "autohotbar_remake.client.optional.mixins.json", "environment": "client" }
   ],
 
   "depends": {

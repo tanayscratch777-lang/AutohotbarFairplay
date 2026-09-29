@@ -1,0 +1,8 @@
+{
+  "required": false,
+  "package": "com.hapnoid.autohotbar.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "ContainerScreenLabelsMixin"
+  ]
+}
