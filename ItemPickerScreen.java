@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -139,8 +140,8 @@ public class ItemPickerScreen extends Screen {
 
                 ItemStack stack = filtered.get(index).stack;
                 try {
-                    g.renderItem(stack, x + (CELL - ICON_SIZE) / 2, y + (CELL - ICON_SIZE) / 2);
-                    g.renderItemDecorations(this.font, stack, x + (CELL - ICON_SIZE) / 2, y + (CELL - ICON_SIZE) / 2);
+                    g.item(stack, x + (CELL - ICON_SIZE) / 2, y + (CELL - ICON_SIZE) / 2);
+                    g.itemDecorations(this.font, stack, x + (CELL - ICON_SIZE) / 2, y + (CELL - ICON_SIZE) / 2);
                 } catch (Throwable t) {
                     g.text(this.font, "?", x + CELL / 2 - 2, y + CELL / 2 - 4, GlassPanel.TEXT_DIM, false);
                 }
@@ -154,7 +155,8 @@ public class ItemPickerScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x(), mouseY = event.y();
         if (hoveredIndex >= 0 && hoveredIndex < filtered.size()
                 && mouseX >= gridLeft && mouseX < gridLeft + gridWidth
                 && mouseY >= gridTop && mouseY < gridTop + gridHeight) {
@@ -162,7 +164,7 @@ public class ItemPickerScreen extends Screen {
             this.minecraft.setScreen(parent);
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
