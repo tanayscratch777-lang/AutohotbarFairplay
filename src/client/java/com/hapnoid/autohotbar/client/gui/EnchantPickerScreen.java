@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.enchantment.Enchantment;
 
@@ -59,7 +60,7 @@ public class EnchantPickerScreen extends Screen {
             Registry<Enchantment> registry = access.lookupOrThrow(Registries.ENCHANTMENT);
             for (Holder<Enchantment> holder : registry.listElements().toList()) {
                 Enchantment ench = holder.value();
-                String id = holder.unwrapKey().map(k -> k.location().toString()).orElse("unknown");
+                String id = holder.getRegisteredName();
                 String name = titleCase(id.contains(":") ? id.substring(id.indexOf(':') + 1) : id);
                 int max;
                 try {
@@ -168,14 +169,14 @@ public class EnchantPickerScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (hoveredIndex >= 0 && hoveredIndex < filtered.size()) {
             EnchantEntry entry = filtered.get(hoveredIndex);
             onPick.accept(entry.id, Math.min(currentLevel, Math.max(1, entry.maxLevel)));
             this.minecraft.setScreen(parent);
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override

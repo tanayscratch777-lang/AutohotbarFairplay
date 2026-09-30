@@ -4,6 +4,7 @@ import com.hapnoid.autohotbar.config.ConfigManager;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -55,13 +56,13 @@ public class ConfigScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        int slot = HotbarStripPreview.slotAt(mouseX, mouseY, stripLeft, stripTop);
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        int slot = HotbarStripPreview.slotAt(event.x(), event.y(), stripLeft, stripTop);
         if (slot > 0) {
             this.minecraft.setScreen(new SlotRuleListScreen(this, slot));
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
