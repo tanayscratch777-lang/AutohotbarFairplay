@@ -1,26 +1,23 @@
 package com.hapnoid.autohotbar.client.gui;
 
 import com.hapnoid.autohotbar.config.ConfigManager;
-import com.hapnoid.autohotbar.config.SlotConfig;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Deliberately simple/functional rather than a pixel-perfect recreation of
- * the original screenshots: one button per hotbar slot. This keeps the GUI
- * code to plain Button/EditBox usage (see class comment in RuleEditScreen
- * for why that matters on this Minecraft version) so it's the part of the
- * mod least likely to need a post-build fix. Visual polish can be layered on
- * once this compiles and runs.
+ * The screen Mod Menu / the open-config keybind lands on first. Shows the
+ * 9-slot hotbar strip from the screenshots - click a box to edit that
+ * slot's rules. Clicks on the strip are handled with a direct mouseClicked
+ * override (same proven pattern as ItemPickerScreen, which compiled and
+ * runs correctly), not vanilla Button widgets, so the boxes can be drawn
+ * exactly like the screenshots instead of looking like vanilla buttons.
  */
 public class ConfigScreen extends Screen {
-    private static final int ROWS = 9;
-    private static final int BUTTON_HEIGHT = 20;
-    private static final int BUTTON_WIDTH = 220;
-    private static final int SPACING = 4;
-
     private final Screen parent;
+    private int stripLeft, stripTop;
+    private int panelLeft, panelTop, panelWidth, panelHeight;
 
     public ConfigScreen(Screen parent) {
         super(Component.literal("AutoHotbar Remake"));
@@ -29,24 +26,42 @@ public class ConfigScreen extends Screen {
 
     @Override
     protected void init() {
-        int startY = 20;
-        int centerX = this.width / 2;
+        int stripWidth = HotbarStripPreview.totalWidth();
+        stripLeft = this.width / 2 - stripWidth / 2;
+        stripTop = 60;
 
-        for (int i = 1; i <= ROWS; i++) {
-            int slotNumber = i;
-            SlotConfig slotConfig = ConfigManager.get().slot(slotNumber);
-            int y = startY + (i - 1) * (BUTTON_HEIGHT + SPACING);
-            this.addRenderableWidget(Button.builder(
-                    Component.literal("Slot " + slotNumber + "  -  " + slotConfig.rules.size() + " rule(s)"),
-                    button -> this.minecraft.setScreen(new SlotRuleListScreen(this, slotNumber))
-            ).bounds(centerX - BUTTON_WIDTH / 2, y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
-        }
+        panelLeft = stripLeft - 16;
+        panelTop = 20;
+        panelWidth = stripWidth + 32;
+        panelHeight = HotbarStripPreview.BOX + 90;
 
-        int doneY = startY + ROWS * (BUTTON_HEIGHT + SPACING) + SPACING;
+        int buttonWidth = 160;
+        int doneY = stripTop + HotbarStripPreview.BOX + 20;
         this.addRenderableWidget(Button.builder(Component.literal("Done"), button -> {
             ConfigManager.save();
             this.minecraft.setScreen(parent);
-        }).bounds(centerX - BUTTON_WIDTH / 2, doneY, BUTTON_WIDTH, BUTTON_HEIGHT).build());
+        }).bounds(this.width / 2 - buttonWidth / 2, doneY, buttonWidth, 20).build());
+
+        int pl = panelLeft, pt = panelTop, pw = panelWidth, ph = panelHeight, sl = stripLeft, st = stripTop;
+        ScreenEvents.AFTER_INIT.register((client, screen, sw, sh) -> {
+            if (screen != this) return;
+            ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, tickDelta) -> {
+                GlassPanel.panel(graphics, pl, pt, pw, ph);
+                graphics.text(this.font, "AutoHotbar Remake", pl + 8, pt + 8, GlassPanel.TEXT, true);
+                graphics.text(this.font, "Click a slot below to edit its rules", pl + 8, pt + 22, GlassPanel.TEXT_DIM, false);
+                HotbarStripPreview.draw(graphics, this.font, sl, st, 0);
+            });
+        });
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int slot = HotbarStripPreview.slotAt(mouseX, mouseY, stripLeft, stripTop);
+        if (slot > 0) {
+            this.minecraft.setScreen(new SlotRuleListScreen(this, slot));
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
